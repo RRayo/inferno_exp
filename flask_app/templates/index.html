@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flask Face Detection</title>
+</head>
+<body>
+    <h1>Webcam Face Detection - Flask</h1>
+    <button onclick="startCamera()">Start Webcam</button>
+    <video id="video" width="640" height="480" autoplay></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+</body>
+
+<script>
+    let video = document.getElementById('video');
+    let canvas = document.getElementById('canvas');
+    let ctx = canvas.getContext('2d');
+
+    function startCamera() {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+                detectFrame();
+            })
+            .catch(err => console.error("Error: ", err));
+    }
+
+    function detectFrame() {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(detectFrame);
+    }
+</script>
+
+</html>
