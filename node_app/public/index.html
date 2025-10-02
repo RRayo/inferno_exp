@@ -1,16 +1,85 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Node Face Detection</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.12.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+    <title>Face Detection Demos</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .demo-list {
+            list-style: none;
+            padding: 0;
+        }
+        .demo-item {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .demo-link {
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .demo-link:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        .demo-description {
+            margin-top: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Webcam Face Detection - Node.js</h1>
-    <button onclick="start()">Start Webcam + Detection</button>
-    <video id="video" width="640" height="480" autoplay muted></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
-
-    <script src="/script.js"></script>
+    <div class="container">
+        <h1>Face Detection Demos</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            Selecciona una demo para probar diferentes técnicas de detección facial
+        </p>
+        
+        <ul class="demo-list">
+            <li class="demo-item">
+                <a href="/face-api.html" class="demo-link">Face-API.js Demo</a>
+                <div class="demo-description">
+                    Detección facial usando la librería Face-API.js con múltiples características como detección de expresiones y landmarks.
+                    <a href="https://github.com/justadudewhohacks/face-api.js.git">Código</a>
+                </div>
+            </li>
+            
+            <li class="demo-item">
+                <a href="/mediapipe.html" class="demo-link">MediaPipe Demo</a>
+                <div class="demo-description">
+                    Detección facial usando MediaPipe de Google, optimizado para rendimiento en tiempo real.
+                    <a href="https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector/web_js?hl=es-419">Código</a>
+                </div>
+            </li>
+        </ul>
+        
+        <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee;">
+            <p style="color: #888; font-size: 12px;">
+                💡 Asegúrate de permitir el acceso a la cámara cuando se solicite
+            </p>
+        </div>
+    </div>
 </body>
 </html>
