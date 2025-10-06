@@ -1,404 +1,146 @@
-<!-- Copyright 2023 The MediaPipe Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License. -->
-
 <!DOCTYPE html>
 <html>
 <head>
-  <link href="material-components-web.min.css" rel="stylesheet">
-  <script src="material-components-web.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Face Detection</title>
   <script type="module">
-    // El código original incluía un aviso de Copyright y Licencia,
-    // que se respeta aquí al mantener la funcionalidad y estructura.
-    
-    import {
-      FaceDetector,
-      FilesetResolver
-    } from "./tasks-vision@0.10.0.js";
-    
-    const demosSection = document.getElementById("demos");
+    import { FaceDetector, FilesetResolver } from "./tasks-vision@0.10.0.js";
     
     let faceDetector;
     let runningMode = "IMAGE";
+    const video = document.getElementById("webcam");
+    const liveView = document.getElementById("liveView");
+    const children = [];
     
-    // Inicializa el detector de rostros
-    const initializefaceDetector = async () => {
+    async function initializeFaceDetector() {
       const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
       );
       faceDetector = await FaceDetector.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: `blaze_face_short_range.tflite`,
-          delegate: "GPU"
-        },
-        runningMode: runningMode
+        baseOptions: { modelAssetPath: "blaze_face_short_range.tflite", delegate: "GPU" },
+        runningMode
       });
-      demosSection.classList.remove("invisible");
-    };
-    initializefaceDetector();
-    
-    //--------------------------------------------------------------------
-    // Demo 1: Detectar rostros en imágenes al hacer clic
-    //--------------------------------------------------------------------
-    
-    const imageContainers = document.getElementsByClassName("detectOnClick");
-    
-    for (let imageContainer of imageContainers) {
-      imageContainer.children[0].addEventListener("click", handleClick);
+      startWebcam();
     }
     
-    /**
-    * Detecta rostros en imágenes fijas al hacer clic
-    */
-    async function handleClick(event) {
-      // Función auxiliar para limpiar elementos
-      const removeElements = (className) => {
-        const elements = event.target.parentNode.getElementsByClassName(className);
-        while (elements[0]) {
-          elements[0].parentNode.removeChild(elements[0]);
-        }
-      };
-      
-      removeElements("highlighter");
-      removeElements("info");
-      removeElements("key-point");
-      
-      if (!faceDetector) {
-        console.log("Espera a que se cargue el objectDetector antes de hacer clic");
-        return;
-      }
-      
-      // si el modo de video está inicializado, establece runningMode a 'IMAGE'
-      if (runningMode === "VIDEO") {
-        runningMode = "IMAGE";
-        await faceDetector.setOptions({ runningMode: "IMAGE" });
-      }
-      
-      // faceDetector.detect devuelve un objeto con la propiedad 'detections'
-      const { detections } = faceDetector.detect(event.target);
-      console.log(detections);
-      
-      displayImageDetections(detections, event.target);
+    function hasGetUserMedia() {
+      return !!navigator.mediaDevices?.getUserMedia;
     }
     
-    function displayImageDetections(detections, resultElement) {
-      const ratio = resultElement.height / resultElement.naturalHeight;
-      console.log(ratio);
+    async function startWebcam() {
+      if (!faceDetector || !hasGetUserMedia()) return;
       
-      for (let detection of detections) {
-        // Texto de descripción (confianza)
-        const p = document.createElement("p");
-        p.setAttribute("class", "info");
-        p.innerText =
-        "Confidence: " +
-        Math.round(parseFloat(detection.categories[0].score) * 100) +
-        "% .";
-        // Estilos para la posición y tamaño del texto
-        p.style.cssText =
-        "left: " +
-        detection.boundingBox.originX * ratio +
-        "px;" +
-        "top: " +
-        (detection.boundingBox.originY * ratio - 30) +
-        "px; " +
-        "width: " +
-        (detection.boundingBox.width * ratio - 10) +
-        "px;" +
-        "height: " +
-        20 +
-        "px;";
-        
-        // Bounding box (resaltador)
-        const highlighter = document.createElement("div");
-        highlighter.setAttribute("class", "highlighter");
-        highlighter.style.cssText =
-        "left: " +
-        detection.boundingBox.originX * ratio +
-        "px;" +
-        "top: " +
-        detection.boundingBox.originY * ratio +
-        "px;" +
-        "width: " +
-        detection.boundingBox.width * ratio +
-        "px;" +
-        "height: " +
-        detection.boundingBox.height * ratio +
-        "px;";
-        
-        resultElement.parentNode.appendChild(highlighter);
-        resultElement.parentNode.appendChild(p);
-        
-        // Keypoints
-        for (let keypoint of detection.keypoints) {
-          const keypointEl = document.createElement("span"); // Se corrigió 'spam' a 'span'
-          keypointEl.className = "key-point";
-          keypointEl.style.top = `${keypoint.y * resultElement.height - 3}px`;
-          keypointEl.style.left = `${keypoint.x * resultElement.width - 3}px`;
-          resultElement.parentNode.appendChild(keypointEl);
-        }
-      }
-    }
-    
-    //--------------------------------------------------------------------
-    // Demo 2: Detectar rostros continuamente desde la cámara web
-    //--------------------------------------------------------------------
-    
-    let video = document.getElementById("webcam");
-    const liveView = document.getElementById("liveView");
-    let enableWebcamButton;
-    
-    // Comprueba si se admite el acceso a la cámara web.
-    const hasGetUserMedia = () => !!navigator.mediaDevices?.getUserMedia;
-    
-    // Mantiene una referencia a todos los elementos hijos creados (para eliminarlos fácilmente)
-    var children = [];
-    
-    // Si se admite la cámara web, añade un event listener al botón.
-    if (hasGetUserMedia()) {
-      enableWebcamButton = document.getElementById("webcamButton");
-      enableWebcamButton.addEventListener("click", enableCam);
-    } else {
-      console.warn("getUserMedia() no es compatible con tu navegador");
-    }
-    
-    // Habilita la vista de la cámara web en vivo y comienza la detección.
-    async function enableCam(event) {
-      if (!faceDetector) {
-        alert("Face Detector todavía se está cargando. Inténtalo de nuevo.");
-        return;
-      }
-      
-      // Oculta el botón.
-      enableWebcamButton.classList.add("removed");
-      
-      // parámetros de getUsermedia
-      const constraints = {
-        video: true
-      };
-      
-      // Activa el flujo de la cámara web.
-      navigator.mediaDevices
-      .getUserMedia(constraints)
-      .then(function (stream) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
         video.addEventListener("loadeddata", predictWebcam);
-      })
-      .catch((err) => {
-        console.error(err);
-      });
+      } catch (err) {
+        console.error("No se pudo acceder a la webcam:", err);
+      }
     }
     
     let lastVideoTime = -1;
     async function predictWebcam() {
-      // si el modo de imagen está inicializado, establece el modo de video
       if (runningMode === "IMAGE") {
         runningMode = "VIDEO";
-        await faceDetector.setOptions({ runningMode: "VIDEO" });
+        await faceDetector.setOptions({ runningMode });
       }
-      let startTimeMs = performance.now();
       
-      // Detecta rostros usando detectForVideo
+      const startTimeMs = performance.now();
       if (video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime;
         const { detections } = faceDetector.detectForVideo(video, startTimeMs);
-        displayVideoDetections(detections);
+        displayDetections(detections);
       }
-      
-      // Llama a esta función de nuevo para seguir prediciendo
-      window.requestAnimationFrame(predictWebcam);
+      requestAnimationFrame(predictWebcam);
     }
     
-    function displayVideoDetections(detections) {
-      // Elimina cualquier resaltado del frame anterior.
-      for (let child of children) {
-        liveView.removeChild(child);
-      }
+    function displayDetections(detections) {
+      // Limpiar detecciones anteriores
+      for (let child of children) liveView.removeChild(child);
       children.splice(0);
       
-      // Itera sobre las detecciones y dibújalas
-      for (let detection of detections) {
-        // Texto de descripción (confianza)
+      for (let det of detections) {
+        // Bounding box
+        const box = document.createElement("div");
+        box.className = "highlighter";
+        box.style.cssText = `
+			left:${video.offsetWidth - det.boundingBox.width - det.boundingBox.originX}px;
+			top:${det.boundingBox.originY}px;
+			width:${det.boundingBox.width - 10}px;
+			height:${det.boundingBox.height}px;
+		`;
+        liveView.appendChild(box);
+        children.push(box);
+        
+        // Confianza
         const p = document.createElement("p");
-        p.innerText =
-        "Confidence: " +
-        Math.round(parseFloat(detection.categories[0].score) * 100) +
-        "% .";
-        // Estilos para la posición y tamaño del texto
-        p.style.cssText =
-        "left: " +
-        (video.offsetWidth -
-        detection.boundingBox.width -
-        detection.boundingBox.originX) +
-        "px;" +
-        "top: " +
-        (detection.boundingBox.originY - 30) +
-        "px; " +
-        "width: " +
-        (detection.boundingBox.width - 10) +
-        "px;";
-        
-        // Bounding box (resaltador)
-        const highlighter = document.createElement("div");
-        highlighter.setAttribute("class", "highlighter");
-        highlighter.style.cssText =
-        "left: " +
-        (video.offsetWidth -
-        detection.boundingBox.width -
-        detection.boundingBox.originX) +
-        "px;" +
-        "top: " +
-        detection.boundingBox.originY +
-        "px;" +
-        "width: " +
-        (detection.boundingBox.width - 10) +
-        "px;" +
-        "height: " +
-        detection.boundingBox.height +
-        "px;";
-        
-        liveView.appendChild(highlighter);
+        p.innerText = "Confidence: " + Math.round(det.categories[0].score * 100) + "%";
+        p.style.cssText = `
+			left:${video.offsetWidth - det.boundingBox.width - det.boundingBox.originX}px;
+			top:${det.boundingBox.originY - 30}px;
+			width:${det.boundingBox.width - 10}px;
+		`;
         liveView.appendChild(p);
-        
-        // Almacena los objetos dibujados para eliminarlos en la siguiente llamada
-        children.push(highlighter);
         children.push(p);
         
         // Keypoints
-        for (let keypoint of detection.keypoints) {
-          const keypointEl = document.createElement("span"); // Se corrigió 'spam' a 'span'
-          keypointEl.className = "key-point";
-          keypointEl.style.top = `${keypoint.y * video.offsetHeight - 3}px`;
-          keypointEl.style.left = `${
-          video.offsetWidth - keypoint.x * video.offsetWidth - 3
-          }px`;
-          liveView.appendChild(keypointEl);
-          children.push(keypointEl);
+        for (let k of det.keypoints) {
+          const kp = document.createElement("span");
+          kp.className = "key-point";
+          kp.style.left = `${video.offsetWidth - k.x * video.offsetWidth - 3}px`;
+          kp.style.top = `${k.y * video.offsetHeight - 3}px`;
+          liveView.appendChild(kp);
+          children.push(kp);
         }
       }
     }
+    
+    initializeFaceDetector();
   </script>
+  <style>
+    body { 
+      font-family: roboto; 
+      margin:2em; 
+      color:#3d3d3d; 
+    }
+    video { 
+      display:block; 
+      transform:rotateY(180deg); 
+    }
+    .videoView { 
+      position:relative; 
+      width:100%; 
+    }
+    .highlighter { 
+      position:absolute; 
+      background:rgba(0,255,0,0.25); 
+      border:1px dashed #fff; 
+      z-index:1; 
+    }
+    .key-point { 
+      position:absolute; 
+      width:3px; 
+      height:3px; 
+      background:red; 
+      border-radius:50%; 
+      z-index:2; 
+    }
+    p { 
+      position:absolute; 
+      padding:5px; 
+      background:#007f8b; 
+      color:#fff; 
+      font-size:12px; 
+      margin:0; 
+      z-index:2; 
+    }
+  </style>
 </head>
-<style>
-  body {
-    font-family: roboto;
-    margin: 2em;
-    color: #3d3d3d;
-    --mdc-theme-primary: #007f8b;
-    --mdc-theme-on-primary: #f1f3f4;
-  }
-  
-  h1 {
-    color: #007f8b;
-  }
-  
-  h2 {
-    clear: both;
-  }
-  
-  em {
-    font-weight: bold;
-  }
-  
-  video {
-    clear: both;
-    display: block;
-    transform: rotateY(180deg);
-    -webkit-transform: rotateY(180deg);
-    -moz-transform: rotateY(180deg);
-  }
-  
-  section {
-    opacity: 1;
-    transition: opacity 500ms ease-in-out;
-  }
-  
-  .mdc-button.mdc-button--raised.removed {
-    display: none;
-  }
-  
-  .invisible {
-    opacity: 0.2;
-  }
-  
-  .videoView,
-  .detectOnClick {
-    position: relative;
-    float: left;
-    width: 48%;
-    margin: 2% 1%;
-    cursor: pointer;
-  }
-  
-  .detectOnClick p {
-    position: absolute;
-    padding: 5px;
-    background-color: #007f8b;
-    color: #fff;
-    border: 1px dashed rgba(255, 255, 255, 0.7);
-    z-index: 2;
-    font-size: 12px;
-    margin: 0;
-  }
-  
-  .videoView p {
-    position: absolute;
-    padding-bottom: 5px;
-    padding-top: 5px;
-    background-color: #007f8b;
-    color: #fff;
-    border: 1px dashed rgba(255, 255, 255, 0.7);
-    z-index: 2;
-    font-size: 12px;
-    margin: 0;
-  }
-  
-  .highlighter {
-    background: rgba(0, 255, 0, 0.25);
-    border: 1px dashed #fff;
-    z-index: 1;
-    position: absolute;
-  }
-  
-  .detectOnClick {
-    z-index: 0;
-  }
-  
-  .detectOnClick img {
-    width: 100%;
-  }
-  .key-point {
-    position: absolute;
-    z-index: 1;
-    width: 3px;
-    height: 3px;
-    background-color: #ff0000;
-    /* border: 1px solid #ffffff; */
-    border-radius: 50%;
-    display: block;
-  }
-</style>
-
-
-<h1>Face detection using the MediaPipe Face Detector task</h1>
-  <h2>Demo: Webcam continuous face detection</h2>
-  <p>Detect faces from your webcam. When ready click "enable webcam" below and accept access to the webcam.</p>
+<body>
+  <h1>Face Detection Demo</h1>
   <div id="liveView" class="videoView">
-    <button id="webcamButton" class="mdc-button mdc-button--raised">
-      <span class="mdc-button__ripple"></span>
-      <span class="mdc-button__label">ENABLE WEBCAM</span>
-    </button>
     <video id="webcam" autoplay playsinline></video>
   </div>
-</section>
-
+</body>
 </html>
