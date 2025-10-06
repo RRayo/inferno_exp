@@ -15,8 +15,8 @@ limitations under the License. -->
 <!DOCTYPE html>
 <html>
 <head>
-  <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+  <link href="material-components-web.min.css" rel="stylesheet">
+  <script src="material-components-web.min.js"></script>
   <script type="module">
     // El código original incluía un aviso de Copyright y Licencia,
     // que se respeta aquí al mantener la funcionalidad y estructura.
@@ -24,7 +24,7 @@ limitations under the License. -->
     import {
       FaceDetector,
       FilesetResolver
-    } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+    } from "./tasks-vision@0.10.0.js";
     
     const demosSection = document.getElementById("demos");
     
@@ -38,7 +38,7 @@ limitations under the License. -->
       );
       faceDetector = await FaceDetector.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`,
+          modelAssetPath: `blaze_face_short_range.tflite`,
           delegate: "GPU"
         },
         runningMode: runningMode
