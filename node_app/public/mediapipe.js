@@ -16,6 +16,7 @@ const elements = {
   liveView: document.getElementById("liveView"),
   uiContainer: document.getElementById("uiContainer"),
   overlayContainer: document.getElementById("overlayContainer"),
+  roiGuide: document.getElementById("roiGuide"),
   bbox: document.getElementById("bbox"),
   statusText: document.getElementById("statusText"),
   keypoints: Array.from({length: 6}, (_, i) => document.getElementById(`kp-${i}`))
@@ -58,7 +59,8 @@ function predictWebcam() {
     const detections = faceDetector.detectForVideo(elements.video, performance.now())?.detections;
 
     if (detections && detections.length > 0) {
-      displayDetections(detections[0]); // Procesamos solo la primera detección
+      // Solo procesamos la detección más probable (la primera)
+      displayDetections(detections[0]);
     } else {
       hideOverlays();
     }
@@ -67,31 +69,22 @@ function predictWebcam() {
 }
 
 function displayDetections(det) {
-  const score = det.categories[0].score;
-  const isFrontal = isFacingForward(det.keypoints);
-
-  if (score > 0.90 && isFrontal) {
-    state.consecutiveFrames++;
-  } else {
-    state.consecutiveFrames = 0;
-  }
-
-  if (state.consecutiveFrames >= state.requiredFrames && state.canSave) {
-    state.canSave = false;
-    state.isPhotoTaken = true;
-    saveFrame(det);
-    return;
-  }
+  const { liveView, video } = elements;
   
-  updateOverlays(det);
-}
+  // 1. Definir y posicionar la Región de Interés (ROI)
+  const roi = {
+    width: liveView.clientWidth * 0.5,
+    height: liveView.clientHeight * 0.7,
+    x: (liveView.clientWidth * 0.25),
+    y: (liveView.clientHeight * 0.15)
+  };
+  const roiGuideStyle = elements.roiGuide.style;
+  roiGuideStyle.width = `${roi.width}px`;
+  roiGuideStyle.height = `${roi.height}px`;
+  roiGuideStyle.left = `${roi.x}px`;
+  roiGuideStyle.top = `${roi.y}px`;
 
-// --- FUNCIONES DE AYUDA (Helpers) ---
-
-function updateOverlays(det) {
-  elements.overlayContainer.style.display = "block";
-
-  const { video, liveView } = elements;
+  // 2. Calcular factores de escala para las superposiciones
   const videoRatio = video.videoWidth / video.videoHeight;
   const viewRatio = liveView.clientWidth / liveView.clientHeight;
   let scale = 1, offsetX = 0, offsetY = 0;
@@ -102,13 +95,55 @@ function updateOverlays(det) {
     scale = liveView.clientWidth / video.videoWidth;
     offsetY = (liveView.clientHeight - video.videoHeight * scale) / 2;
   }
+  
+  // 3. Calcular la posición en pantalla del rostro detectado
+  const scaledWidth = det.boundingBox.width * scale;
+  const scaledOriginX = det.boundingBox.originX * scale;
+  const scaledOriginY = det.boundingBox.originY * scale;
+  const boxCenterX = liveView.clientWidth - scaledOriginX - (scaledWidth / 2) - offsetX;
+  const boxCenterY = scaledOriginY + (det.boundingBox.height * scale / 2) + offsetY;
+
+  // 4. Comprobar si el rostro está dentro del ROI
+  const isInRoi = (
+    boxCenterX > roi.x && boxCenterX < roi.x + roi.width &&
+    boxCenterY > roi.y && boxCenterY < roi.y + roi.height
+  );
+
+  const score = det.categories[0].score;
+  const isFrontal = isFacingForward(det.keypoints);
+
+  // 5. Activar contador solo si todas las condiciones se cumplen
+  if (isInRoi && score > 0.90 && isFrontal) {
+    state.consecutiveFrames++;
+  } else {
+    state.consecutiveFrames = 0;
+  }
+
+  // 6. Guardar la foto si se alcanza el umbral de estabilidad
+  if (state.consecutiveFrames >= state.requiredFrames && state.canSave) {
+    state.canSave = false;
+    state.isPhotoTaken = true;
+    saveFrame(det);
+    return;
+  }
+  
+  // 7. Actualizar la información visual en cada frame
+  updateOverlays(det, { scale, offsetX, offsetY });
+}
+
+// --- FUNCIONES DE AYUDA (Helpers) ---
+
+function updateOverlays(det, scaling) {
+  elements.overlayContainer.style.display = "block";
+  const { scale, offsetX, offsetY } = scaling;
+  const { video, liveView, bbox, statusText, keypoints } = elements;
 
   // Actualizar Bounding Box
-  const bboxStyle = elements.bbox.style;
   const scaledWidth = det.boundingBox.width * scale;
   const scaledHeight = det.boundingBox.height * scale;
   const scaledOriginX = det.boundingBox.originX * scale;
   const scaledOriginY = det.boundingBox.originY * scale;
+  const bboxStyle = bbox.style;
   bboxStyle.left = `${liveView.clientWidth - scaledOriginX - scaledWidth - offsetX}px`;
   bboxStyle.top = `${scaledOriginY + offsetY}px`;
   bboxStyle.width = `${scaledWidth}px`;
@@ -116,23 +151,23 @@ function updateOverlays(det) {
   bboxStyle.borderColor = state.consecutiveFrames > 0 ? "#00FF00" : "#FFFFFF";
   
   // Actualizar Texto de Estado
-  let statusText = "";
+  let text = "";
   if (state.consecutiveFrames > 0) {
     const progress = Math.round((state.consecutiveFrames / state.requiredFrames) * 100);
-    statusText = `Mantén la posición... ${progress}%`;
-    elements.statusText.style.backgroundColor = "#E67E22";
+    text = `Mantén la posición... ${progress}%`;
+    statusText.style.backgroundColor = "#E67E22";
   } else {
-    statusText = "Buscando rostro frontal...";
-    elements.statusText.style.backgroundColor = "#CC3300";
+    text = "Ubica tu rostro en el óvalo";
+    statusText.style.backgroundColor = "#CC3300";
   }
-  elements.statusText.innerText = statusText;
-  elements.statusText.style.left = bboxStyle.left;
-  elements.statusText.style.top = `${parseFloat(bboxStyle.top) - 40}px`;
-  elements.statusText.style.width = bboxStyle.width;
+  statusText.innerText = text;
+  statusText.style.left = bboxStyle.left;
+  statusText.style.top = `${parseFloat(bboxStyle.top) - 45}px`;
+  statusText.style.width = bboxStyle.width;
   
   // Actualizar Keypoints
   det.keypoints.forEach((k, i) => {
-    const kpStyle = elements.keypoints[i].style;
+    const kpStyle = keypoints[i].style;
     kpStyle.left = `${liveView.clientWidth - (k.x * video.videoWidth * scale) - offsetX - 3}px`;
     kpStyle.top = `${(k.y * video.videoHeight * scale) + offsetY - 3}px`;
   });
@@ -162,7 +197,7 @@ function isFacingForward(keypoints) {
   const distNoseToRightEye = Math.abs(noseTip.x - rightEye.x);
   if (distNoseToLeftEye === 0 || distNoseToRightEye === 0) return false;
   const ratio = Math.min(distNoseToLeftEye, distNoseToRightEye) / Math.max(distNoseToLeftEye, distNoseToRightEye);
-  return ratio > 0.7;
+  return ratio > 0.7; // Umbral de pose frontal
 }
 
 function saveFrame(det) {
@@ -174,12 +209,13 @@ function saveFrame(det) {
   
   const snapshotCanvas = document.getElementById("snapshotCanvas");
   const ctx = snapshotCanvas.getContext("2d");
-  // Por simplicidad, se usa la versión de guardado limpio:
+  
+  // Versión de guardado limpio (sin dibujos) para máxima calidad de imagen
   snapshotCanvas.width = frameCaptureCanvas.width;
   snapshotCanvas.height = frameCaptureCanvas.height;
-  ctx.drawImage(frameCaptureCanvas, 0, 0);
+  ctx.drawImage(frameCaptureCanvas, 0, 0); // Dibuja el frame capturado
   const link = document.createElement('a');
-  link.download = `captura-${new Date().toISOString()}.png`;
+  link.download = `captura-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
   link.href = snapshotCanvas.toDataURL("image/png");
   link.click();
   console.log("Frame guardado con éxito.");

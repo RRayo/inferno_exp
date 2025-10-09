@@ -39,3 +39,12 @@ video {
     z-index: 10; pointer-events: none;
 }
 #uiContainer > * { pointer-events: auto; }
+
+.roi-guide {
+  position: absolute;
+  /* La posición y tamaño se controlarán desde JavaScript, pero definimos el aspecto */
+  border: 3px dashed white;
+  border-radius: 50%; /* Esto lo convierte en un óvalo */
+  box-shadow: 0 0 15px rgba(0,0,0,0.7); /* Sombra para que resalte más */
+  z-index: 0;
+}
