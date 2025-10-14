@@ -1,0 +1,70 @@
+/* --- ESTILOS GENERALES --- */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* Evita barras de scroll */
+  font-family: roboto, sans-serif;
+  color: #3d3d3d;
+  background-color: #000;
+}
+
+h1 {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  border-radius: 5px;
+  z-index: 10;
+}
+
+/* --- CONTENEDOR DE VIDEO --- */
+.videoView {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Efecto espejo para que el usuario se vea como en un espejo real */
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+}
+
+/* --- ELEMENTOS DE DETECCIÓN --- */
+.highlighter {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.1);
+  border-style: solid;
+  z-index: 1;
+}
+
+.key-point {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: red;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+p.detection-status {
+  position: absolute;
+  padding: 5px;
+  background: #007f8b;
+  color: #fff;
+  margin: 0;
+  z-index: 2;
+  border-radius: 4px;
+}
