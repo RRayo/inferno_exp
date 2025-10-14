@@ -5,8 +5,8 @@ const CONFIG = {
   minScore: 0.90,
   requiredConsecutiveFrames: 60,
   frontalThreshold: 0.7,
-  detectionFontSize: '24px', // Tamaño del texto "Validando rostro..."
-  successFontSize: '42px'    // Tamaño del texto "¡Captura completada!"
+  detectionFontSize: '28px', // Tamaño del texto "Validando rostro..."
+  successFontSize: '46px'    // Tamaño del texto "¡Captura completada!"
 };
 
 const DOM = {
@@ -18,15 +18,15 @@ const DOM = {
 const STATUS = {
     VALIDATING: (progress) => ({
         text: `Validando su rostro... ${progress}%`,
-        color: '#FFC300' // Amarillo
+        color: '#FFC300'
     }),
     VALIDATED: {
         text: 'Rostro validado',
-        color: '#009933' // Verde
+        color: '#009933'
     },
     INVALID: {
         text: 'Enderece su rostro',
-        color: '#CC3300' // Rojo
+        color: '#CC3300'
     }
 };
 
@@ -140,7 +140,7 @@ function updateDetectionUI(det, status) {
     p.innerText = status.text;
     p.style.backgroundColor = status.color;
     p.style.left = `${DOM.video.clientWidth - scaledOriginX - scaledWidth - offsetX}px`;
-    p.style.top = `${scaledOriginY - 40}px`; // Ajustado para el nuevo tamaño de fuente
+    p.style.top = `${scaledOriginY - 40}px`;
     p.style.width = `${scaledWidth}px`;
     p.style.textAlign = 'center';
     p.style.fontSize = CONFIG.detectionFontSize;
@@ -189,7 +189,6 @@ function showSuccessMessage() {
         transform: translateX(-50%);
         padding: 20px;
         border-radius: 10px;
-        /* --- CAMBIO: Se aplica el tamaño de fuente desde la configuración --- */
         font-size: ${CONFIG.successFontSize};
         z-index: 10;
     `;
@@ -197,18 +196,55 @@ function showSuccessMessage() {
     console.log("Captura completada.");
 }
 
+/**
+ * Captura y descarga solo el área visible del video, replicando el 'object-fit: cover'.
+ */
 function saveFrame() {
   const ctx = DOM.canvas.getContext("2d");
-  DOM.canvas.width = DOM.video.videoWidth;
-  DOM.canvas.height = DOM.video.videoHeight;
-  
-  ctx.translate(DOM.canvas.width, 0);
+  const video = DOM.video;
+  const canvas = DOM.canvas;
+
+  // 1. Establecer el tamaño del canvas igual al tamaño visible del video en pantalla
+  canvas.width = video.clientWidth;
+  canvas.height = video.clientHeight;
+
+  // 2. Calcular las proporciones para replicar 'object-fit: cover'
+  const videoAspectRatio = video.videoWidth / video.videoHeight;
+  const canvasAspectRatio = canvas.width / canvas.height;
+  let renderableWidth, renderableHeight, xStart, yStart;
+
+  if (videoAspectRatio < canvasAspectRatio) {
+    // Si el video es más 'alto' que el canvas, el ancho se ajusta y la altura se recorta
+    renderableWidth = canvas.width;
+    renderableHeight = renderableWidth / videoAspectRatio;
+    xStart = 0;
+    yStart = (canvas.height - renderableHeight) / 2;
+  } else if (videoAspectRatio > canvasAspectRatio) {
+    // Si el video es más 'ancho' que el canvas, la altura se ajusta y el ancho se recorta
+    renderableHeight = canvas.height;
+    renderableWidth = renderableHeight * videoAspectRatio;
+    yStart = 0;
+    xStart = (canvas.width - renderableWidth) / 2;
+  } else {
+    // Si las proporciones son iguales, no hay recorte
+    renderableHeight = canvas.height;
+    renderableWidth = canvas.width;
+    xStart = 0;
+    yStart = 0;
+  }
+
+  // 3. Aplicar el efecto espejo antes de dibujar
+  ctx.translate(canvas.width, 0);
   ctx.scale(-1, 1);
-  ctx.drawImage(DOM.video, 0, 0, DOM.canvas.width, DOM.canvas.height);
+
+  // 4. Dibujar el video en el canvas con el recorte y escala calculados
+  // Esto simula el 'object-fit: cover'
+  ctx.drawImage(video, xStart, yStart, renderableWidth, renderableHeight);
   
+  // 5. Descargar la imagen del canvas
   const link = document.createElement('a');
   link.download = `captura-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
-  link.href = DOM.canvas.toDataURL("image/png");
+  link.href = canvas.toDataURL("image/png");
   link.click();
 }
 
