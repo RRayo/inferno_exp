@@ -3,7 +3,7 @@ import { FaceDetector, FilesetResolver } from "./tasks-vision@0.10.0.js";
 // --- 1. CONFIGURACIÓN Y CONSTANTES ---
 const CONFIG = {
   minScore: 0.90,
-  requiredConsecutiveFrames: 60,
+  requiredConsecutiveFrames: 120, // Aproximadamente 4 segundos a 30fps
   frontalThreshold: 0.7,
   detectionFontSize: '46px', // Tamaño del texto "Validando rostro..."
   successFontSize: '120px',   // Tamaño del texto "¡Captura completada!"
@@ -151,7 +151,7 @@ function updateDetectionUI(det, status) {
     p.innerText = status.text;
     p.style.backgroundColor = status.color;
     p.style.left = `${DOM.video.clientWidth - scaledOriginX - scaledWidth - offsetX}px`;
-    p.style.top = `${scaledOriginY - 40}px`;
+    p.style.top = `${scaledOriginY - 60}px`;
     p.style.width = `${scaledWidth}px`;
     p.style.textAlign = 'center';
     p.style.fontSize = CONFIG.detectionFontSize;
