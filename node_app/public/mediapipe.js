@@ -5,8 +5,11 @@ const CONFIG = {
   minScore: 0.90,
   requiredConsecutiveFrames: 60,
   frontalThreshold: 0.7,
-  detectionFontSize: '28px', // Tamaño del texto "Validando rostro..."
-  successFontSize: '46px'    // Tamaño del texto "¡Captura completada!"
+  detectionFontSize: '46px', // Tamaño del texto "Validando rostro..."
+  successFontSize: '120px',   // Tamaño del texto "¡Captura completada!"
+  showScore: false,           // true: Muestra el score de confianza
+  showKeypoints: true,       // true: Muestra los puntos clave del rostro
+  keypointSize: 20,           // Tamaño en píxeles de los puntos clave
 };
 
 const DOM = {
@@ -109,6 +112,14 @@ function handleDetections(detections) {
     consecutiveFramesCounter = 0;
     currentStatus = STATUS.INVALID;
   }
+
+  if (CONFIG.showScore) {
+    // remove previous score if any
+    if (currentStatus.text.includes('Score:')) {
+        currentStatus.text = currentStatus.text.split(' (Score:')[0];
+    }
+    currentStatus.text += ` (Score: ${Math.round(score * 100)}%)`;
+  }
   
   updateDetectionUI(detection, currentStatus);
 }
@@ -146,6 +157,23 @@ function updateDetectionUI(det, status) {
     p.style.fontSize = CONFIG.detectionFontSize;
     DOM.liveView.appendChild(p);
     detectionChildren.push(p);
+
+    if (CONFIG.showKeypoints) {
+        for (const k of det.keypoints) {
+            const kp = document.createElement("span");
+            kp.className = "key-point";
+            const keypointX = DOM.video.clientWidth - (k.x * DOM.video.videoWidth * scale) - offsetX;
+            const keypointY = (k.y * DOM.video.videoHeight * scale); // No necesita offsetY
+            
+            kp.style.width = `${CONFIG.keypointSize}px`;
+            kp.style.height = `${CONFIG.keypointSize}px`;
+            kp.style.left = `${keypointX - (CONFIG.keypointSize / 2)}px`;
+            kp.style.top = `${keypointY - (CONFIG.keypointSize / 2)}px`;
+            
+            DOM.liveView.appendChild(kp);
+            detectionChildren.push(kp);
+        }
+    }
 }
 
 function clearDetections() {
@@ -185,8 +213,7 @@ function showSuccessMessage() {
         color: white;
         position: absolute;
         top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
+        
         padding: 20px;
         border-radius: 10px;
         font-size: ${CONFIG.successFontSize};
@@ -196,52 +223,40 @@ function showSuccessMessage() {
     console.log("Captura completada.");
 }
 
-/**
- * Captura y descarga solo el área visible del video, replicando el 'object-fit: cover'.
- */
 function saveFrame() {
   const ctx = DOM.canvas.getContext("2d");
   const video = DOM.video;
   const canvas = DOM.canvas;
 
-  // 1. Establecer el tamaño del canvas igual al tamaño visible del video en pantalla
   canvas.width = video.clientWidth;
   canvas.height = video.clientHeight;
 
-  // 2. Calcular las proporciones para replicar 'object-fit: cover'
   const videoAspectRatio = video.videoWidth / video.videoHeight;
   const canvasAspectRatio = canvas.width / canvas.height;
   let renderableWidth, renderableHeight, xStart, yStart;
 
   if (videoAspectRatio < canvasAspectRatio) {
-    // Si el video es más 'alto' que el canvas, el ancho se ajusta y la altura se recorta
     renderableWidth = canvas.width;
     renderableHeight = renderableWidth / videoAspectRatio;
     xStart = 0;
     yStart = (canvas.height - renderableHeight) / 2;
   } else if (videoAspectRatio > canvasAspectRatio) {
-    // Si el video es más 'ancho' que el canvas, la altura se ajusta y el ancho se recorta
     renderableHeight = canvas.height;
     renderableWidth = renderableHeight * videoAspectRatio;
     yStart = 0;
     xStart = (canvas.width - renderableWidth) / 2;
   } else {
-    // Si las proporciones son iguales, no hay recorte
     renderableHeight = canvas.height;
     renderableWidth = canvas.width;
     xStart = 0;
     yStart = 0;
   }
 
-  // 3. Aplicar el efecto espejo antes de dibujar
   ctx.translate(canvas.width, 0);
   ctx.scale(-1, 1);
 
-  // 4. Dibujar el video en el canvas con el recorte y escala calculados
-  // Esto simula el 'object-fit: cover'
   ctx.drawImage(video, xStart, yStart, renderableWidth, renderableHeight);
   
-  // 5. Descargar la imagen del canvas
   const link = document.createElement('a');
   link.download = `captura-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
   link.href = canvas.toDataURL("image/png");
