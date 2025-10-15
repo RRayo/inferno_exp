@@ -52,8 +52,6 @@ video {
 
 .key-point {
   position: absolute;
-  width: 3px;
-  height: 3px;
   background: red;
   border-radius: 50%;
   z-index: 2;
@@ -67,4 +65,12 @@ p.detection-status {
   margin: 0;
   z-index: 2;
   border-radius: 4px;
+}
+
+.roi-box {
+  position: absolute;
+  border: 3px dashed white;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); /* Sombra exterior para oscurecer el resto */
+  z-index: 5;
+  pointer-events: none; /* Para que no interfiera con otros elementos */
 }
