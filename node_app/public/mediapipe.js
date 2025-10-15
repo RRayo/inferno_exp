@@ -18,17 +18,17 @@ const CONFIG = {
   }
 };
 
-const DOM = {
-  video: document.getElementById("webcam"),
-  liveView: document.getElementById("liveView"),
-  canvas: document.getElementById("snapshotCanvas")
-};
-
 const STATUS = {
     VALIDATING: (progress) => ({ text: `Validando su rostro... ${progress}%`, color: '#FFC300' }),
     VALIDATED: { text: 'Rostro validado', color: '#009933' },
     INVALID: { text: 'Enderece su rostro', color: '#CC3300' },
     NO_FACE: { text: 'Acérquese a la cámara', color: '#CC3300' }
+};
+
+const DOM = {
+  video: document.getElementById("webcam"),
+  liveView: document.getElementById("liveView"),
+  canvas: document.getElementById("snapshotCanvas")
 };
 
 let faceDetector;
@@ -80,21 +80,15 @@ async function predictWebcam() {
 }
 
 // --- 4. LÓGICA DE DETECCIÓN Y UI ---
-
-/**
- * Gestiona la lógica de detección, incluyendo la validación dentro del ROI.
- */
 function handleDetections(detections) {
   clearDetections();
 
-  // Reinicia el contador si no hay detecciones o si el rostro está fuera del ROI
   if (detections.length === 0 || !isFaceInROI(detections[0])) {
     consecutiveFramesCounter = 0;
-    updateUIMessage(STATUS.NO_FACE); // Muestra "Acérquese a la cámara"
+    updateUIMessage(STATUS.NO_FACE);
     return;
   }
 
-  // --- El rostro está detectado Y dentro del ROI ---
   const detection = detections[0];
   const score = detection.categories[0].score;
   const isFrontal = isFacingForward(detection.keypoints);
@@ -120,7 +114,7 @@ function handleDetections(detections) {
     currentStatus.text += ` (Score: ${Math.round(score * 100)}%)`;
   }
   
-  updateDetectionUI(detection, currentStatus); // Dibuja la caja y puntos solo si está en el ROI
+  updateDetectionUI(detection, currentStatus);
 }
 
 function updateDetectionUI(det, status) {
@@ -187,26 +181,47 @@ function drawROI() {
   DOM.liveView.appendChild(roiBox);
 }
 
+/**
+ * Verifica si el RECTÁNGULO COMPLETO del rostro está dentro del ROI.
+ */
 function isFaceInROI(detection) {
+  if (!detection) return false;
+
   const scale = DOM.video.clientHeight / DOM.video.videoHeight;
   const offsetX = (DOM.video.clientWidth - DOM.video.videoWidth * scale) / 2;
   
-  const boxCenterX = DOM.video.clientWidth - (detection.boundingBox.originX + detection.boundingBox.width / 2) * scale - offsetX;
-  const boxCenterY = (detection.boundingBox.originY + detection.boundingBox.height / 2) * scale;
+  // 1. Calcular las coordenadas del recuadro del rostro en la pantalla
+  const scaledWidth = detection.boundingBox.width * scale;
+  const scaledHeight = detection.boundingBox.height * scale;
+  const scaledOriginX = detection.boundingBox.originX * scale;
+  const scaledOriginY = detection.boundingBox.originY * scale;
 
+  const faceBox = {
+      left: DOM.video.clientWidth - scaledOriginX - scaledWidth - offsetX,
+      top: scaledOriginY,
+      right: DOM.video.clientWidth - scaledOriginX - offsetX,
+      bottom: scaledOriginY + scaledHeight
+  };
+  // Corrección para el borde derecho debido al efecto espejo
+  faceBox.right = faceBox.left + scaledWidth;
+
+  // 2. Calcular los límites del ROI en píxeles
   const roiPx = {
-    x: DOM.video.clientWidth * CONFIG.roi.x,
-    y: DOM.video.clientHeight * CONFIG.roi.y,
-    width: DOM.video.clientWidth * CONFIG.roi.width,
-    height: DOM.video.clientHeight * CONFIG.roi.height,
+    left: DOM.video.clientWidth * CONFIG.roi.x,
+    top: DOM.video.clientHeight * CONFIG.roi.y,
+    right: DOM.video.clientWidth * (CONFIG.roi.x + CONFIG.roi.width),
+    bottom: DOM.video.clientHeight * (CONFIG.roi.y + CONFIG.roi.height),
   };
 
-  return (
-    boxCenterX > roiPx.x &&
-    boxCenterX < roiPx.x + roiPx.width &&
-    boxCenterY > roiPx.y &&
-    boxCenterY < roiPx.y + roiPx.height
+  // 3. Verificar que las 4 coordenadas del recuadro del rostro estén dentro del ROI
+  const isInside = (
+    faceBox.left >= roiPx.left &&
+    faceBox.right <= roiPx.right &&
+    faceBox.top >= roiPx.top &&
+    faceBox.bottom <= roiPx.bottom
   );
+
+  return isInside;
 }
 
 function updateUIMessage(status) {
