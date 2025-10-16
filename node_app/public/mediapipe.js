@@ -181,16 +181,12 @@ function drawROI() {
   DOM.liveView.appendChild(roiBox);
 }
 
-/**
- * Verifica si el RECTÁNGULO COMPLETO del rostro está dentro del ROI.
- */
 function isFaceInROI(detection) {
   if (!detection) return false;
 
   const scale = DOM.video.clientHeight / DOM.video.videoHeight;
   const offsetX = (DOM.video.clientWidth - DOM.video.videoWidth * scale) / 2;
   
-  // 1. Calcular las coordenadas del recuadro del rostro en la pantalla
   const scaledWidth = detection.boundingBox.width * scale;
   const scaledHeight = detection.boundingBox.height * scale;
   const scaledOriginX = detection.boundingBox.originX * scale;
@@ -199,13 +195,11 @@ function isFaceInROI(detection) {
   const faceBox = {
       left: DOM.video.clientWidth - scaledOriginX - scaledWidth - offsetX,
       top: scaledOriginY,
-      right: DOM.video.clientWidth - scaledOriginX - offsetX,
+      right: 0,
       bottom: scaledOriginY + scaledHeight
   };
-  // Corrección para el borde derecho debido al efecto espejo
   faceBox.right = faceBox.left + scaledWidth;
 
-  // 2. Calcular los límites del ROI en píxeles
   const roiPx = {
     left: DOM.video.clientWidth * CONFIG.roi.x,
     top: DOM.video.clientHeight * CONFIG.roi.y,
@@ -213,7 +207,6 @@ function isFaceInROI(detection) {
     bottom: DOM.video.clientHeight * (CONFIG.roi.y + CONFIG.roi.height),
   };
 
-  // 3. Verificar que las 4 coordenadas del recuadro del rostro estén dentro del ROI
   const isInside = (
     faceBox.left >= roiPx.left &&
     faceBox.right <= roiPx.right &&
@@ -268,11 +261,50 @@ function isFacingForward(keypoints) {
   return ratio > CONFIG.frontalThreshold;
 }
 
+/**
+ * Orquesta el proceso final de captura, visualización y limpieza.
+ */
 function captureAndFinalize() {
     appState = 'SUCCESS';
-    saveFrame();
+    const imageDataUrl = saveFrame(); // Guarda la imagen y obtiene su URL
     clearDetections();
+    displayFinalImage(imageDataUrl); // Muestra la imagen capturada
+    stopWebcam(); // Apaga la cámara
+    
+    const roiBox = document.querySelector('.roi-box');
+    if (roiBox) roiBox.style.display = 'none'; // Oculta el ROI
+
     showSuccessMessage();
+}
+
+/**
+ * Muestra la imagen capturada en la pantalla.
+ */
+function displayFinalImage(imageDataUrl) {
+    const img = document.createElement('img');
+    img.src = imageDataUrl;
+    img.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    `;
+    DOM.liveView.appendChild(img);
+    DOM.video.style.display = 'none'; // Oculta el elemento de video
+}
+
+/**
+ * Detiene la transmisión de la cámara web.
+ */
+function stopWebcam() {
+    const stream = DOM.video.srcObject;
+    if (stream) {
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+        DOM.video.srcObject = null;
+    }
 }
 
 function showSuccessMessage() {
@@ -292,6 +324,9 @@ function showSuccessMessage() {
     console.log("Captura completada.");
 }
 
+/**
+ * Guarda el frame y devuelve la URL de la imagen.
+ */
 function saveFrame() {
   const ctx = DOM.canvas.getContext("2d");
   const video = DOM.video;
@@ -325,10 +360,13 @@ function saveFrame() {
   ctx.scale(-1, 1);
   ctx.drawImage(video, xStart, yStart, renderableWidth, renderableHeight);
   
+  const imageDataUrl = canvas.toDataURL("image/png");
   const link = document.createElement('a');
   link.download = `captura-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
-  link.href = canvas.toDataURL("image/png");
+  link.href = imageDataUrl;
   link.click();
+
+  return imageDataUrl; // Devuelve la URL de la imagen
 }
 
 // --- INICIAR LA APLICACIÓN ---
